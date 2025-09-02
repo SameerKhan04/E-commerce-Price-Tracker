@@ -1,0 +1,119 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<!-- Add Product Form -->
+<div class="bg-white p-6 rounded-xl shadow-md mb-8 max-w-2xl mx-auto">
+    <h2 class="text-2xl font-semibold mb-4">Add a New Product to Track</h2>
+    <form action="{{ url_for('add_product') }}" method="POST" class="space-y-4">
+        <div>
+            <label for="url" class="block text-sm font-medium text-slate-700">Product URL</label>
+            <input type="url" name="url" id="url" required class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500" placeholder="https://www.amazon.com/your-product">
+        </div>
+        <div>
+            <label for="target_price" class="block text-sm font-medium text-slate-700">Target Price ($)</label>
+            <input type="number" name="target_price" id="target_price" required step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500" placeholder="99.99">
+        </div>
+        <button type="submit" class="w-full bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors duration-200">
+            Add Product
+        </button>
+    </form>
+</div>
+
+<!-- Tracked Products List -->
+<div class="bg-white p-6 rounded-xl shadow-md">
+    <h2 class="text-2xl font-semibold mb-4">Currently Tracked Products</h2>
+    {% if products %}
+    <div class="space-y-6">
+        {% for product in products %}
+        <div class="border border-slate-200 p-4 rounded-lg">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div class="flex-grow mb-4 md:mb-0">
+                    <h3 class="font-bold text-lg text-slate-800">{{ product.title or 'Title not yet scraped' }}</h3>
+                    <a href="{{ product.url }}" target="_blank" class="text-sm text-sky-600 hover:underline break-all">{{ product.url }}</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-center">
+                        <span class="text-xs text-slate-500 uppercase">Current</span>
+                        <p class="text-2xl font-semibold {% if product.latest_price and product.latest_price < product.target_price %}text-green-600{% else %}text-slate-800{% endif %}">
+                            {{ "${:,.2f}".format(product.latest_price) if product.latest_price else 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="text-center">
+                        <span class="text-xs text-slate-500 uppercase">Target</span>
+                        <p class="text-2xl font-semibold text-slate-500">${{ "{:,.2f}".format(product.target_price) }}</p>
+                    </div>
+                    <form action="{{ url_for('delete_product', product_id=product.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                        <button type="submit" class="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition-colors duration-200">&times;</button>
+                    </form>
+                </div>
+            </div>
+             <!-- Price History Chart -->
+             <div class="mt-4">
+                <canvas id="chart-{{ product.id }}"></canvas>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-slate-500">You are not tracking any products yet. Add one using the form above!</p>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const products = {{ products|tojson }};
+    products.forEach(product => {
+        const ctx = document.getElementById(`chart-${product.id}`);
+        if (!ctx) return;
+
+        fetch(`/api/product_history/${product.id}`)
+            .then(response => response.json())
+            .then(data => {
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        // --- FIX ---
+                        // Replace the space in the timestamp with a 'T'.
+                        // This makes it a standard ISO format that all browsers understand.
+                        labels: data.labels.map(ts => new Date(ts.replace(' ', 'T')).toLocaleDateString()),
+                        datasets: [{
+                            label: 'Price ($)',
+                            data: data.prices,
+                            borderColor: 'rgb(56, 189, 248)',
+                            backgroundColor: 'rgba(56, 189, 248, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: true,
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function(value, index, values) {
+                                        return '$' + value.toFixed(2);
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Price: $${context.parsed.y.toFixed(2)}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+    });
+});
+</script>
+{% endblock %}
+

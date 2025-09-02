@@ -1,4 +1,5 @@
 import re
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -10,38 +11,58 @@ from config import ACCEPT_LANGUAGE, USER_AGENT
 
 def scrape_product_info(url: str):
     """
-    Scrapes a single product page and returns its title and price.
+    Scrapes a single product page using multiple selectors for robustness.
     Returns (None, None) if scraping fails.
     """
     try:
         headers = {
             "User-Agent": USER_AGENT,
-            "Accept-Language": ACCEPT_LANGUAGE
+            "Accept-Language": ACCEPT_LANGUAGE,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1", # Do Not Track Request Header
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1"
         }
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
+        time.sleep(1) # Be respectful to the server
+
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Extract Title
-        title_element = soup.find(id="productTitle")
-        product_title = title_element.get_text().strip() if title_element else "Title not found"
-
-        # Extract Price
+        # --- Extract Title (Try multiple selectors) ---
+        product_title = "Title not found"
+        title_selectors = ["#productTitle", "#title", "h1.a-size-large"]
+        for selector in title_selectors:
+            title_element = soup.select_one(selector)
+            if title_element:
+                product_title = title_element.get_text(strip=True)
+                break
+        
+        # --- Extract Price (Try multiple selectors) ---
         price_str = None
-        price_whole_element = soup.select_one('.a-price-whole')
-        price_fraction_element = soup.select_one('.a-price-fraction')
-
-        if price_whole_element and price_fraction_element:
-            price_str = f"{price_whole_element.get_text().strip()}{price_fraction_element.get_text().strip()}"
-        else:
-            price_span_element = soup.select_one('span.a-price span.a-offscreen')
-            if price_span_element:
-                price_str = price_span_element.get_text()
-
+        price_selectors = [
+            'span.a-price span[aria-hidden="true"]',
+            'span.a-price.aok-align-center span.a-offscreen',
+            '#corePrice_feature_div .a-offscreen',
+            '#priceblock_ourprice',
+            '.priceToPay'
+        ]
+        for selector in price_selectors:
+            price_element = soup.select_one(selector)
+            if price_element:
+                price_str = price_element.get_text(strip=True)
+                break
+        
         if not price_str:
+            print(f"Could not find price for {url}")
             return product_title, None
 
         price_cleaned = re.sub(r'[^\d.]', '', price_str)
+        if not price_cleaned:
+            print(f"Price string '{price_str}' could not be cleaned.")
+            return product_title, None
+
         current_price = float(price_cleaned)
         return product_title, current_price
 
@@ -51,6 +72,7 @@ def scrape_product_info(url: str):
     except Exception as e:
         print(f"An unexpected error occurred while scraping {url}: {e}")
         return None, None
+
 
 def check_all_products():
     """
@@ -96,6 +118,8 @@ def check_all_products():
 if __name__ == "__main__":
     check_all_products()
 
-if __name__ == "__main__":
-    check_all_products()
+
+
+
+
 
