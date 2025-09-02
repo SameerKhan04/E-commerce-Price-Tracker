@@ -132,23 +132,23 @@ def get_product_price_history(product_id: int):
     conn = get_db_connection()
     history = conn.execute("SELECT * FROM price_history WHERE product_id = ? ORDER BY timestamp ASC", (product_id,)).fetchall()
     conn.close()
-    return history
-
-def log_price(product_id: int, price: float):
-    """Logs a new price entry for a product."""
+def add_price_history(product_id: int, price: float):
+    """Adds a new price entry for a product with the current timestamp."""
     conn = get_db_connection()
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with conn:
-        conn.execute("INSERT INTO price_history (product_id, price, timestamp) VALUES (?, ?, ?)",
-                   (product_id, price, timestamp))
+        conn.execute(
+            "INSERT INTO price_history (product_id, price, timestamp) VALUES (?, ?, ?)",
+            (product_id, price, timestamp)
+        )
     conn.close()
 
-def update_product_title(product_id: int, title: str):
-    """Updates the title of a product."""
+def get_product_by_id(product_id: int):
+    """Retrieves a single product from the database by its ID."""
     conn = get_db_connection()
-    with conn:
-        conn.execute("UPDATE products SET title = ? WHERE id = ?", (title, product_id))
+    product = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
     conn.close()
+    return product
 
 if __name__ == '__main__':
     import sys
@@ -160,5 +160,3 @@ if __name__ == '__main__':
             add_product(sys.argv[2], float(sys.argv[3]))
         else:
             print("Invalid command. Use 'init' or 'add <url> <price>'.")
-
-

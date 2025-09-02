@@ -2,22 +2,23 @@ import os
 
 from dotenv import load_dotenv
 
-# Load environment variables from a .env file
-load_dotenv()
+# Find the absolute path of the directory containing this script
+basedir = os.path.abspath(os.path.dirname(__file__))
+# Load environment variables from a .env file located in the same directory
+load_dotenv(os.path.join(basedir, '.env'))
 
 # --- Email Configuration ---
-# Your email address from which alerts will be sent
-SENDER_EMAIL = os.getenv("SENDER_EMAIL")
+# Fetches the sender's email address from environment variables.
+SENDER_EMAIL = os.getenv('SENDER_EMAIL')
+# Fetches the sender's email password (or App Password) from environment variables.
+SENDER_PASSWORD = os.getenv('SENDER_PASSWORD')
+# Fetches the recipient's email address from environment variables.
+RECIPIENT_EMAIL = os.getenv('RECIPIENT_EMAIL')
 
-# The password for your sender email account.
-# For Gmail, this should be an "App Password".
-SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 
-# The email address that will receive the price alerts.
-RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
+# --- Celery Configuration ---
+# Fetches the Redis URL for Celery to use as a message broker.
+# Defaults to the standard local Redis instance if not set in .env
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 
-# --- Scraper Configuration ---
-# User-Agent to mimic a real browser
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-ACCEPT_LANGUAGE = "en-US,en;q=0.9"
-ACCEPT_LANGUAGE = "en-US,en;q=0.9"
+

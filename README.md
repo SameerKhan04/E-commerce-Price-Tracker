@@ -1,102 +1,74 @@
 # E-commerce Price Tracker
 ## Project Overview
-This is a Python-based application designed to track the prices of products on e-commerce websites. It started as a simple web scraping script and is being developed into a full-featured web application that sends email notifications when a product's price drops below a user-defined target.
+This is a Python-based application designed to track the prices of products on e-commerce websites. It started as a simple web scraping script and has been developed into a full-featured web application that runs automated background checks and sends email notifications when a product's price drops below a user-defined target.
 
-This project is built to be scalable, demonstrating skills in web scraping, data management, backend development, and automation.
+This project is built to be scalable, demonstrating skills in web scraping, database management, asynchronous task processing, and web development.
 
-## Phase 1: Core Scraping Script
+## Phase 1 & 2: Backend Scripting
 Status: Completed
 
-The initial version of the project is a standalone Python script (price_tracker.py) that performs the following actions:
+- Established the core backend logic, including a modular structure for scraping, database management (SQLite), and email alerts.
 
-- Scrapes a hardcoded product URL from Amazon.
-
-- Extracts the product title and its current price.
-
-- Compares the current price against a predefined target price.
-
-- Prints the result to the console.
-
-## Phase 2: Database Integration and Email Alerts
+## Phase 3: Web Interface with Flask
 Status: Completed
 
-This phase refactors the project into a modular application with a persistent database and automated email notifications.
+- Introduced a web-based user interface using the Flask framework. This included a dashboard for adding/deleting products and interactive charts (using Chart.js) to visualize price history.
 
-- Database Storage: Uses SQLite to store and manage multiple products to track. It also logs a history of price changes for each product.
+## Phase 4: Asynchronous Task Processing with Celery & Redis
+Status: Completed
 
-- Email Notifications: Sends an email alert when a product's price drops below the user's target.
+- This phase re-architected the application to use a professional-grade background task queue. This makes the system more robust, scalable, and non-blocking.
 
-- Secure Credential Management: Uses a .env file to store sensitive information like email credentials, which are kept out of version control via .gitignore.
+- Background Jobs: Web scraping and email notifications are now handled by Celery, a powerful distributed task queue. This means the web application remains fast and responsive, as long-running scraping tasks don't block it.
 
-- Modular Code: The logic is split into separate modules for scraping, database interaction, and email sending, which is a best practice for maintainability.
+- Message Broker: Redis is used as the message broker, which manages the queue of scraping jobs for Celery.
 
-### Technologies Used
-- Python 3
+- Automated Scraping: When a new product is added via the web interface, a scraping task is immediately dispatched to the background worker.
 
-- Requests
+- Scheduled Checks: The price_tracker.py script now functions as a scheduler, which can be run periodically (e.g., via a cron job) to trigger price checks for all tracked products.
 
-- Beautiful Soup 4
+- Refactored Code: The core scraping logic was moved to a dedicated scraper.py module to improve code organization and resolve circular dependencies.
 
-- SQLite3 (via Python's standard library)
+### Final Technology Stack
+- Backend: Python, Flask, Celery
 
-- smtplib (for sending emails)
+- Database: SQLite
 
-- python-dotenv (for managing environment variables)
+- Message Broker: Redis
 
-### How to Run
-1. Clone the repository (if you haven't already):
+- Frontend: HTML, Tailwind CSS, Chart.js
 
+- Web Scraping: requests, Beautiful Soup
+
+### How to Run the Final Application
+The application now consists of three main components that need to be run in separate terminals.
+
+1. Install Redis (if you haven't already):
+- The easiest method is using Docker. Make sure Docker Desktop is running, then execute:
 ```
-git clone [https://github.com/your-username/price-tracker.git](https://github.com/your-username/price-tracker.git)
-cd price-tracker
+docker run -d -p 6379:6379 redis
 ```
-
-2. Create and activate a virtual environment:
-
-```
-python3 -m venv venv
-source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-```
-3. Install the required libraries:
-
+2. Install Dependencies:
+- Make sure your virtual environment is active and run:
 ```
 pip install -r requirements.txt
 ```
+3. Run the System (in 3 separate terminals):
 
-4. Create your environment file:
-
-- Create a new file named .env in the project's root directory.
-
-- Add the following lines to it, replacing the values with your own credentials:
-
-SENDER_EMAIL=your_email@gmail.com
-SENDER_PASSWORD=your_gmail_app_password
-RECIPIENT_EMAIL=email_to_receive_alerts@example.com
-
-- IMPORTANT: For SENDER_PASSWORD, if you use Gmail, you must generate an "App Password". You cannot use your regular Gmail password.
-
-5. Initialize the database:
-
-- Run-  the database script to create the tracker.db file and tables.
-
+Terminal 1 — Start the Celery Worker:
+- This process listens for and executes background scraping jobs.
 ```
-python3 database.py init
+celery -A tasks.celery_app worker --loglevel=info
 ```
-
-6. Add a product to track:
-
-- Use the database script to add your first product.
-
+Terminal 2 — Start the Flask Web App:
+- This serves the website.
 ```
-python3 database.py add "[https://www.amazon.com.au/Logitech-Wireless-Keyboard-Receiver-Control/dp/B07W6J8L4G/](https://www.amazon.com.au/Logitech-Wireless-Keyboard-Receiver-Control/dp/B07W6J8L4G/)" 100.00
+python app.py
 ```
-
-- Replace the URL and target price with your desired product. You can add as many as you like.
-
-7. Run the tracker:
-
+Terminal 3 — Run the Scheduler (to check all products):
+- This will dispatch a background job for every product in your database. You only need to run this when you want to trigger a full update.
 ```
-python3 price_tracker.py
+python price_tracker.py
 ```
-
-- The script will now check all products stored in your database!
+4.  Access the Dashboard:
+- Open your browser and navigate to http://127.0.0.1:5001 to view and manage your products.
